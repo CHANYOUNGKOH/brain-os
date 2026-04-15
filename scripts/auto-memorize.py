@@ -19,9 +19,10 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-HERMES_DIR = Path.home() / ".hermes"
-HOLOGRAPHIC_DB = HERMES_DIR / "holographic.db"
-PLUGIN_PATH = HERMES_DIR / "hermes-agent" / "plugins" / "memory" / "holographic"
+import os
+BRAIN_DIR = Path(os.environ.get("BRAIN_OS_DIR", str(Path.home() / ".brain-os")))
+HOLOGRAPHIC_DB = BRAIN_DIR / "holographic.db"
+PLUGIN_PATH = BRAIN_DIR / "holographic"
 CLAUDE_PROJECTS = Path.home() / ".claude" / "projects"
 
 # 추출 패턴 (assistant 메시지에서)

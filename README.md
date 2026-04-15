@@ -44,31 +44,61 @@ Claude Code Max (엔진)
 
 ## Quick Start
 
-### 1. Requirements
-- macOS / Linux
-- Claude Code Max subscription ($100/mo or $200/mo)
-- Python 3.9+
-- Git
+### Requirements
+- **Claude Code Max** subscription ($100/mo or $200/mo) — only paid item
+- **Python 3.9+**
+- **Git**
+- macOS, Linux, or Windows
 
-### 2. Install
+### Install
+
+**macOS / Linux:**
 ```bash
 git clone https://github.com/Kokoko9494/brain-os.git ~/.brain-os
 cd ~/.brain-os
 ./install.sh
 ```
 
-### 3. What install.sh does
-1. 디렉토리 구조 생성 (vault, rules, skills, memory, scripts)
-2. CLAUDE.md 템플릿 생성
-3. Claude Code hooks 설정 (자가학습 리마인더)
-4. Cron jobs 등록 (캡처, 분석, 정리)
-5. 초기 규칙 파일 생성
+**Windows (PowerShell):**
+```powershell
+git clone https://github.com/Kokoko9494/brain-os.git $env:USERPROFILE\.brain-os
+cd $env:USERPROFILE\.brain-os
+python install.sh  # or: ask Claude Code to set it up
+```
 
-### 4. Start using
+**Or just ask Claude Code:**
+```
+cd ~/.brain-os   (or %USERPROFILE%\.brain-os on Windows)
+# Open Claude Code, then say:
+"Brain OS 셋업해줘" or "Set up Brain OS"
+# Claude reads CLAUDE.md and handles the rest for your platform
+```
+
+### What gets set up
+1. Directory structure (vault, rules, skills, memory, scripts)
+2. CLAUDE.md (system prompt with self-improving rules)
+3. Claude Code hooks (learning reminders)
+4. Scheduled tasks (capture, analysis, cleanup)
+5. Task queues for agent delegation
+6. Notification setup (Telegram/Discord — optional)
+
+### Platform-specific notes
+
+| Feature | macOS | Linux | Windows |
+|---------|-------|-------|---------|
+| Scheduler | crontab | crontab | Task Scheduler (schtasks) |
+| Chrome History | ✅ | ✅ | ✅ |
+| Safari History | ✅ | — | — |
+| Telegram/Discord | ✅ | ✅ | ✅ |
+| Claude Code | ✅ | ✅ | ✅ |
+
+Use `python scripts/scheduler.py install` for cross-platform schedule setup.
+
+### Start using
 ```bash
 cd ~/.brain-os
-# Claude Code가 CLAUDE.md를 자동 로드
-# 대화하면서 자동으로 학습 시작
+# Claude Code auto-loads CLAUDE.md
+# Start talking — the system learns automatically
 ```
 
 ## Components

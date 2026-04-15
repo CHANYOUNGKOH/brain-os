@@ -15,12 +15,23 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-VAULT = Path.home() / ".hermes" / "vault"
+import platform
+
+BRAIN_DIR = Path(os.environ.get("BRAIN_OS_DIR", str(Path.home() / ".brain-os")))
+VAULT = BRAIN_DIR / "vault"
 RAW_DIR = VAULT / "raw"
 LOG_FILE = VAULT / "log.md"
 
-CHROME_HISTORY = Path.home() / "Library" / "Application Support" / "Google" / "Chrome" / "Default" / "History"
-SAFARI_HISTORY = Path.home() / "Library" / "Safari" / "History.db"
+# 플랫폼별 Chrome 경로
+if platform.system() == "Windows":
+    CHROME_HISTORY = Path(os.environ.get("LOCALAPPDATA", "")) / "Google" / "Chrome" / "User Data" / "Default" / "History"
+    SAFARI_HISTORY = None  # Safari 없음
+elif platform.system() == "Darwin":
+    CHROME_HISTORY = Path.home() / "Library" / "Application Support" / "Google" / "Chrome" / "Default" / "History"
+    SAFARI_HISTORY = Path.home() / "Library" / "Safari" / "History.db"
+else:  # Linux
+    CHROME_HISTORY = Path.home() / ".config" / "google-chrome" / "Default" / "History"
+    SAFARI_HISTORY = None
 
 # Perplexity 등 보존 가치 높은 도메인
 HIGH_VALUE_DOMAINS = [

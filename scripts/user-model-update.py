@@ -25,8 +25,9 @@ from pathlib import Path
 from datetime import datetime
 from collections import Counter
 
-HERMES_DIR = Path.home() / ".hermes"
-MODEL_PATH = HERMES_DIR / "user-model.json"
+import os
+BRAIN_DIR = Path(os.environ.get("BRAIN_OS_DIR", str(Path.home() / ".brain-os")))
+MODEL_PATH = BRAIN_DIR / "user-model.json"
 CLAUDE_PROJECTS = Path.home() / ".claude" / "projects"
 
 # 교정 신호 패턴
