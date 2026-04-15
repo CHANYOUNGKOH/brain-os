@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.brain-os/scripts/si-pattern-check.sh 2>/dev/null || true",
+            "timeout": 10,
+            "statusMessage": "SI pattern check..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"Self-improving: Record patterns for user corrections, repeated requests, error resolutions, workflow discoveries in vault/patterns/. Always notify user before recording — silent recording is forbidden.\"}}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
