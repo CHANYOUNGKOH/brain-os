@@ -21,10 +21,22 @@ mkdir -p "$BRAIN_DIR"/{rules,vault/{raw,entities,concepts,comparisons,queries,pa
 echo "[2/9] Copying scripts..."
 cp "$SRC_DIR/scripts/"*.py "$BRAIN_DIR/scripts/" 2>/dev/null || true
 cp "$SRC_DIR/scripts/"*.sh "$BRAIN_DIR/scripts/" 2>/dev/null || true
+cp "$SRC_DIR/scripts/"*.js "$BRAIN_DIR/scripts/" 2>/dev/null || true
 cp "$SRC_DIR/scripts/agents/"*.py "$BRAIN_DIR/scripts/agents/" 2>/dev/null || true
 cp "$SRC_DIR/scripts/agents/"*.sh "$BRAIN_DIR/scripts/agents/" 2>/dev/null || true
 chmod +x "$BRAIN_DIR/scripts/"*.sh "$BRAIN_DIR/scripts/"*.py 2>/dev/null || true
 chmod +x "$BRAIN_DIR/scripts/agents/"*.sh "$BRAIN_DIR/scripts/agents/"*.py 2>/dev/null || true
+
+# ── 2b. Playwright 설치 (a11y tree 캡처용) ────────────
+echo "[2b/9] Installing Playwright..."
+if command -v npm &>/dev/null; then
+  (cd "$BRAIN_DIR" && npm install playwright 2>/dev/null && npx playwright install chromium 2>/dev/null) || {
+    echo "  Warning: Playwright install failed — a11y capture will be skipped"
+  }
+  echo "  Playwright installed"
+else
+  echo "  Warning: npm not found — install Node.js for Playwright a11y capture"
+fi
 
 # ── 3. CLAUDE.md 생성 ────────────────────────
 echo "[3/9] Creating CLAUDE.md..."
@@ -195,10 +207,16 @@ else
     done
     echo "# Capture Pipeline — browser history (daily 23:00)"
     echo "0 23 * * * /usr/bin/python3 $BRAIN_DIR/scripts/capture-history.py >> $BRAIN_DIR/scripts/capture.log 2>&1"
+    echo "# Playwright A11y Capture — high-value pages (daily 23:15)"
+    echo "15 23 * * * /usr/bin/python3 $BRAIN_DIR/scripts/playwright-capture.py >> $BRAIN_DIR/scripts/playwright-capture.log 2>&1"
     echo "# User Model Update (daily 23:30)"
     echo "30 23 * * * /usr/bin/python3 $BRAIN_DIR/scripts/user-model-update.py >> $BRAIN_DIR/scripts/user-model.log 2>&1"
     echo "# Auto-Memorize (daily 23:45)"
     echo "45 23 * * * /usr/bin/python3 $BRAIN_DIR/scripts/auto-memorize.py >> $BRAIN_DIR/scripts/memorize.log 2>&1"
+    echo "# Auto-Evolve — pattern promote + skill create + memory sync (daily 00:00)"
+    echo "0 0 * * * /usr/bin/python3 $BRAIN_DIR/scripts/auto-evolve.py >> $BRAIN_DIR/scripts/auto-evolve.log 2>&1"
+    echo "# Vault Index Auto-Update (daily 03:00)"
+    echo "0 3 * * * /usr/bin/python3 $BRAIN_DIR/scripts/vault-index-update.py >> $BRAIN_DIR/scripts/vault-index.log 2>&1"
     echo "# Vault Hygiene (daily 04:00)"
     echo "0 4 * * * $BRAIN_DIR/scripts/vault-hygiene.sh >> $BRAIN_DIR/scripts/vault-hygiene.log 2>&1"
   ) | crontab -

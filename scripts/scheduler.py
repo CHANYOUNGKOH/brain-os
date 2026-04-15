@@ -24,8 +24,11 @@ IS_MAC = platform.system() == "Darwin"
 SCHEDULES = [
     ("brain-os-audit", "scripts/hermes-audit.py", "30min"),
     ("brain-os-capture", "scripts/capture-history.py", "daily-23:00"),
+    ("brain-os-playwright", "scripts/playwright-capture.py", "daily-23:15"),
     ("brain-os-usermodel", "scripts/user-model-update.py", "daily-23:30"),
     ("brain-os-memorize", "scripts/auto-memorize.py", "daily-23:45"),
+    ("brain-os-evolve", "scripts/auto-evolve.py", "daily-00:00"),
+    ("brain-os-index", "scripts/vault-index-update.py", "daily-03:00"),
     ("brain-os-hygiene", "scripts/vault-hygiene.py", "daily-04:00"),
 ]
 
@@ -42,8 +45,11 @@ def install_crontab():
     cron_map = {
         "30min": "*/30 * * * *",
         "daily-23:00": "0 23 * * *",
+        "daily-23:15": "15 23 * * *",
         "daily-23:30": "30 23 * * *",
         "daily-23:45": "45 23 * * *",
+        "daily-00:00": "0 0 * * *",
+        "daily-03:00": "0 3 * * *",
         "daily-04:00": "0 4 * * *",
     }
 
@@ -67,8 +73,11 @@ def install_windows_tasks():
     schedule_map = {
         "30min": "/sc minute /mo 30",
         "daily-23:00": "/sc daily /st 23:00",
+        "daily-23:15": "/sc daily /st 23:15",
         "daily-23:30": "/sc daily /st 23:30",
         "daily-23:45": "/sc daily /st 23:45",
+        "daily-00:00": "/sc daily /st 00:00",
+        "daily-03:00": "/sc daily /st 03:00",
         "daily-04:00": "/sc daily /st 04:00",
     }
 

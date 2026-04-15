@@ -26,6 +26,9 @@ Claude Code Max (엔진)
 │   ├── user-model-update.py   — 사용자 이해 엔진
 │   ├── auto-memorize.py       — 대화→사실 자동 추출
 │   ├── skill-promoter.py      — 성공 패턴→skill 승격
+│   ├── playwright-capture.py  — high-value URL → a11y tree 캡처
+│   ├── capture-a11y.js        — Playwright headless 캡처 헬퍼
+│   ├── vault-index-update.py  — INDEX.md 자동 재생성
 │   ├── vault-hygiene.sh       — stale 정리 + 무결성
 │   ├── hermes-audit.sh        — 30분 자가 감사
 │   ├── notify.sh              — 알림 라우터 (Telegram/Discord)
@@ -120,10 +123,13 @@ Chrome/Safari History (로컬 SQLite)
 → 날짜별 필터 + 노이즈 제거
 → vault/raw/history-YYYY-MM-DD.md
 → High-value 페이지 별도 저장
+→ Playwright로 a11y tree 캡처 (스크린샷 대신)
+→ vault/raw/capture-YYYY-MM-DD-*.md
 ```
 
 - GitHub, Perplexity, Claude, StackOverflow 등 고가치 도메인 자동 마킹
 - OAuth/login/auth URL 자동 필터링
+- Playwright accessibility tree: 스크린샷보다 빠르고, 토큰 비용 적고, 구조화된 텍스트
 
 ### 3. User Understanding Engine (Honcho 대체)
 
@@ -163,7 +169,7 @@ vault/patterns/ 스캔
 | Brave Search API | WebSearch | Claude 내장 |
 | Parallel Search | WebSearch 다중 호출 | Claude 내장 |
 | Firecrawl | WebFetch | Claude 내장 |
-| Comet CDP | Playwright | 로컬 설치 |
+| Comet CDP | Playwright (a11y tree) | 로컬 설치, headless Chromium |
 | Honcho | user-model-update.py | 로컬 transcript 분석 |
 | Supermemory | Holographic (SQLite+HRR) | 로컬 DB |
 | Obsidian Vault | vault/ 디렉토리 | 파일 기반 |
@@ -192,10 +198,13 @@ vault/patterns/ 스캔
 ### Cron
 ```
 */30 * * * *  hermes-audit.sh          # 자가 감사
-0    14 * * * capture-history.py        # 히스토리 수집 (23:00 KST)
-30   14 * * * user-model-update.py      # 사용자 모델 갱신
-45   14 * * * auto-memorize.py          # 사실 자동 축적
-0    19 * * * vault-hygiene.sh          # vault 정리
+0    23 * * * capture-history.py        # 히스토리 수집
+15   23 * * * playwright-capture.py     # high-value 페이지 a11y 캡처
+30   23 * * * user-model-update.py      # 사용자 모델 갱신
+45   23 * * * auto-memorize.py          # 사실 자동 축적
+0    0  * * * auto-evolve.py            # 패턴 승격 + 스킬 생성 + 메모리 동기화
+0    3  * * * vault-index-update.py     # INDEX.md 자동 갱신
+0    4  * * * vault-hygiene.sh          # vault 정리
 0    0  * * 1 system-maturity.sh        # 주간 보고
 ```
 
