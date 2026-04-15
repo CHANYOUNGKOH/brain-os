@@ -4,6 +4,9 @@ scripts/*.log
 # Database
 *.db
 
+# Secrets
+brain-os.env
+
 # Personal data
 user-model.json
 memory/*.md

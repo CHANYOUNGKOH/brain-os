@@ -21,12 +21,23 @@ Claude Code Max (엔진)
 ├── rules/ (영구 규칙 — 승격된 패턴)
 ├── vault/ (지식 저장소)
 │   └── patterns/ (감지된 패턴)
-├── scripts/ (자동화)
-│   ├── capture-history.py   — 브라우저 히스토리 수집
-│   ├── user-model-update.py — 사용자 이해 엔진
-│   ├── auto-memorize.py     — 대화→사실 자동 추출
-│   ├── skill-promoter.py    — 성공 패턴→skill 승격
-│   └── vault-hygiene.sh     — stale 정리 + 무결성
+├── scripts/
+│   ├── capture-history.py     — 브라우저 히스토리 수집
+│   ├── user-model-update.py   — 사용자 이해 엔진
+│   ├── auto-memorize.py       — 대화→사실 자동 추출
+│   ├── skill-promoter.py      — 성공 패턴→skill 승격
+│   ├── vault-hygiene.sh       — stale 정리 + 무결성
+│   ├── hermes-audit.sh        — 30분 자가 감사
+│   ├── notify.sh              — 알림 라우터 (Telegram/Discord)
+│   ├── send-telegram.py       — 텔레그램 메시지/파일 전송
+│   └── agents/
+│       ├── agent-loop.sh      — 범용 에이전트 루프
+│       ├── dispatch-now.sh    — 즉시 위임 트리거
+│       ├── dispatch-check.py  — 다음 태스크 찾기
+│       ├── task-set-review.py — 완료→리뷰 상태 전환
+│       └── task-approve.py    — 리뷰→완료 승인
+├── task-queue-{domain}.json (도메인별 태스크큐)
+├── brain-os.env (Telegram/Discord 토큰)
 ├── skills/ (도메인 스킬)
 └── memory/ (세션 기록)
 ```
@@ -169,6 +180,78 @@ vault/patterns/ 스캔
 | `si:extract [name]` | 범용 스킬로 추출 |
 | `si:status` | 학습 현황 대시보드 |
 | `si:remember [text]` | 즉시 기억 저장 |
+
+## Agent Delegation (Task Queue System)
+
+에이전트에 작업을 위임하고 자동 실행하는 시스템.
+
+### Flow
+```
+사용자 지시 → 도메인 판별 → task-queue 등록 → dispatch-now.sh → agent-loop → Claude CLI
+→ 완료 → review 상태 → 알림 → 사용자 리뷰 → task-approve.py → completed
+```
+
+### Task Queue Format
+```json
+{
+  "version": 1,
+  "project": "trading",
+  "tasks": [
+    {
+      "id": "T001",
+      "task": "L1 IC measurement for RSI divergence",
+      "agent": "research-runner",
+      "status": "pending",
+      "depends_on": null
+    }
+  ]
+}
+```
+
+### Commands
+```bash
+# 즉시 위임
+dispatch-now.sh trading T001
+
+# 태스크 승인
+task-approve.py task-queue-trading.json T001 "검증 완료"
+```
+
+### Task Rules
+- 1 task = 5분 이내 완료 가능 크기
+- 1 task = 1파일 수정 또는 1함수 작성
+- 대상 파일 경로 + 구체적 변경 내용 필수
+- `dispatch_count >= 3` → blocked (수동 확인 필요)
+
+## Telegram / Discord Notifications
+
+### Setup
+```bash
+# brain-os.env 편집
+TELEGRAM_BOT_TOKEN="your-bot-token"
+TELEGRAM_CHAT_ID="your-chat-id"
+# 또는
+DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/..."
+```
+
+### Telegram Bot 만들기
+1. @BotFather에게 `/newbot` 명령
+2. 봇 이름 + 유저네임 설정
+3. 받은 토큰을 `brain-os.env`에 입력
+4. 봇에게 아무 메시지 전송
+5. `https://api.telegram.org/bot<TOKEN>/getUpdates` 에서 chat_id 확인
+
+### 알림이 오는 경우
+- 태스크 리뷰 대기
+- 태스크 실행 실패
+- CLAUDE.md 무결성 위반
+- Stale 패턴 정리
+- Skill 승격 후보 발견
+
+### 파일 전송
+```bash
+send-telegram.py --file /path/to/file.md general
+```
 
 ## Customization
 

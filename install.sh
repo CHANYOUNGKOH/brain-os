@@ -1,10 +1,12 @@
 #!/bin/bash
 # Brain OS — Install Script
 # 로컬 PC에서 자가학습 AI 에이전트 시스템 셋업
+# 자가학습 + 에이전트 위임 + 텔레그램/디스코드 알림
 set -euo pipefail
 
 BRAIN_DIR="${BRAIN_OS_DIR:-$HOME/.brain-os}"
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
+SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "🧠 Brain OS Installer"
 echo "====================="
@@ -12,112 +14,56 @@ echo "Install directory: $BRAIN_DIR"
 echo ""
 
 # ── 1. 디렉토리 구조 ────────────────────────
-echo "[1/7] Creating directory structure..."
-mkdir -p "$BRAIN_DIR"/{rules,vault/{raw,entities,concepts,comparisons,queries,patterns},skills,memory,scripts}
+echo "[1/9] Creating directory structure..."
+mkdir -p "$BRAIN_DIR"/{rules,vault/{raw,entities,concepts,comparisons,queries,patterns},skills,memory,scripts/agents}
 
 # ── 2. 스크립트 복사 ────────────────────────
-echo "[2/7] Copying scripts..."
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)/scripts"
-if [ -d "$SCRIPT_DIR" ]; then
-  cp "$SCRIPT_DIR"/*.py "$BRAIN_DIR/scripts/" 2>/dev/null || true
-  cp "$SCRIPT_DIR"/*.sh "$BRAIN_DIR/scripts/" 2>/dev/null || true
-  chmod +x "$BRAIN_DIR/scripts/"*.sh 2>/dev/null || true
-  chmod +x "$BRAIN_DIR/scripts/"*.py 2>/dev/null || true
-fi
+echo "[2/9] Copying scripts..."
+cp "$SRC_DIR/scripts/"*.py "$BRAIN_DIR/scripts/" 2>/dev/null || true
+cp "$SRC_DIR/scripts/"*.sh "$BRAIN_DIR/scripts/" 2>/dev/null || true
+cp "$SRC_DIR/scripts/agents/"*.py "$BRAIN_DIR/scripts/agents/" 2>/dev/null || true
+cp "$SRC_DIR/scripts/agents/"*.sh "$BRAIN_DIR/scripts/agents/" 2>/dev/null || true
+chmod +x "$BRAIN_DIR/scripts/"*.sh "$BRAIN_DIR/scripts/"*.py 2>/dev/null || true
+chmod +x "$BRAIN_DIR/scripts/agents/"*.sh "$BRAIN_DIR/scripts/agents/"*.py 2>/dev/null || true
 
 # ── 3. CLAUDE.md 생성 ────────────────────────
-echo "[3/7] Creating CLAUDE.md..."
+echo "[3/9] Creating CLAUDE.md..."
 if [ ! -f "$BRAIN_DIR/CLAUDE.md" ]; then
-  TEMPLATE_DIR="$(cd "$(dirname "$0")" && pwd)/templates"
-  if [ -f "$TEMPLATE_DIR/CLAUDE.md" ]; then
-    cp "$TEMPLATE_DIR/CLAUDE.md" "$BRAIN_DIR/CLAUDE.md"
-  else
-    cat > "$BRAIN_DIR/CLAUDE.md" << 'CLAUDE_EOF'
-# Brain OS — Self-Improving Agent
-
-## 자동 학습 (항상 활성 — 강제)
-대화 중 다음을 자동 수행:
-1. **패턴 감지** — 반복 요청, 에러 해결, 사용자 교정, 워크플로우 발견 시
-2. **한 줄 알림 후 기록** — `vault/patterns/`에 저장 (묵묵히 기록 금지)
-3. **검증된 패턴은 승격** — 사용자 확인 후 `rules/`에 영구 등록
-
-### 강제 규칙 (스킵 = 위반)
-- 사용자 교정 감지 시 → **현재 작업보다 기록이 우선**
-- 부정어/의문형 교정(안돼, 하지마, 왜, 거기 아님) → 즉시 패턴 기록
-- system-reminder 자가학습 리마인더 = 참고가 아니라 **행동 명령**
-- 매 응답 전 셀프 체크: "교정/발견 있었는데 기록 안 한 거 있나?"
-
-## SI 명령어
-- `si:review` — 패턴 분석, 승격 후보, stale 정리
-- `si:promote [패턴]` — 규칙으로 영구 승격
-- `si:extract [패턴]` — 범용 스킬로 추출
-- `si:status` — 학습 현황 대시보드
-- `si:remember [내용]` — 즉시 기억 저장
-
-## Vault
-- 지식 저장소: `vault/`
-- 구조: raw/ entities/ concepts/ comparisons/ queries/ **patterns/**
-
-## 톤
-간결, 직접적.
-CLAUDE_EOF
-  fi
+  cp "$SRC_DIR/templates/CLAUDE.md" "$BRAIN_DIR/CLAUDE.md"
   echo "  Created: $BRAIN_DIR/CLAUDE.md"
 else
   echo "  Skipped: CLAUDE.md already exists"
 fi
 
 # ── 4. 규칙 파일 생성 ────────────────────────
-echo "[4/7] Creating initial rules..."
-TEMPLATE_DIR="$(cd "$(dirname "$0")" && pwd)/templates"
-
+echo "[4/9] Creating initial rules..."
 if [ ! -f "$BRAIN_DIR/rules/core.md" ]; then
   cat > "$BRAIN_DIR/rules/core.md" << 'EOF'
 # Core Rules
 
 1. **소통 우선** — 작업 전 의도 확인, 진행 중 상태 보고, 완료 후 요약
-2. **학습 축적** — 사용자 피드백, 패턴, 교정을 vault에 기록
-3. **자율 실행 금지** — 각 단계 소통 필수
+2. **위임 전문** — 도메인 에이전트에 위임, 직접 코드 수정 금지
+3. **학습 축적** — 사용자 피드백, 패턴, 교정을 vault에 기록
+4. **단일책임 경계** — 역할 경계 = 에이전트 경계
+5. **자율 실행 금지** — 각 단계 소통 필수
 EOF
 fi
 
 if [ ! -f "$BRAIN_DIR/rules/self-improving.md" ]; then
-  if [ -f "$TEMPLATE_DIR/self-improving.md" ]; then
-    cp "$TEMPLATE_DIR/self-improving.md" "$BRAIN_DIR/rules/self-improving.md"
-  else
-    cat > "$BRAIN_DIR/rules/self-improving.md" << 'EOF'
-# Self-Improving — 자동 학습 루프
-
-## 패턴 감지 트리거
-- **반복 요청**: 동일/유사 요청 2회 이상
-- **에러 해결**: 새 해결법 발견
-- **사용자 교정**: 행동/판단 수정
-- **워크플로우 발견**: 작업 순서 반복
-- **선호 표현**: 명시적/암시적 선호
-
-## 강제 감지 규칙
-1. 부정어/의문형 교정 → 즉시 패턴 기록
-2. 매 응답 전 셀프 체크: "기록 안 한 교정/발견 있나?"
-3. system-reminder = 행동 명령
-EOF
-  fi
+  cp "$SRC_DIR/templates/self-improving.md" "$BRAIN_DIR/rules/self-improving.md"
 fi
 
 # ── 5. Holographic memory 셋업 ────────────────────────
-echo "[5/7] Setting up Holographic memory..."
+echo "[5/9] Setting up Holographic memory..."
 HOLO_DIR="$BRAIN_DIR/holographic"
 if [ ! -d "$HOLO_DIR" ]; then
   mkdir -p "$HOLO_DIR"
-  # 기본 holographic 모듈 복사
-  HOLO_SRC="$(cd "$(dirname "$0")" && pwd)/scripts/holographic"
-  if [ -d "$HOLO_SRC" ]; then
-    cp -r "$HOLO_SRC"/* "$HOLO_DIR/"
+  if [ -d "$SRC_DIR/scripts/holographic" ]; then
+    cp -r "$SRC_DIR/scripts/holographic/"* "$HOLO_DIR/"
   else
-    # 최소 SQLite 기반 메모리 스토어 생성
     cat > "$HOLO_DIR/store.py" << 'PYEOF'
 """Minimal fact store — SQLite based."""
 import sqlite3
-from pathlib import Path
 
 class MemoryStore:
     def __init__(self, db_path):
@@ -153,7 +99,8 @@ class MemoryStore:
         return [dict(zip(cols, row)) for row in cursor]
 
     def list_facts(self, limit=50):
-        cursor = self._conn.execute("SELECT * FROM facts ORDER BY created_at DESC LIMIT ?", (limit,))
+        cursor = self._conn.execute(
+            "SELECT * FROM facts ORDER BY created_at DESC LIMIT ?", (limit,))
         cols = [d[0] for d in cursor.description]
         return [dict(zip(cols, row)) for row in cursor]
 
@@ -162,12 +109,35 @@ class MemoryStore:
 PYEOF
   fi
   echo "  Created: $HOLO_DIR"
-else
-  echo "  Skipped: holographic already exists"
 fi
 
-# ── 6. Claude Code hooks 설정 ────────────────────────
-echo "[6/7] Configuring Claude Code hooks..."
+# ── 6. 환경변수 파일 ────────────────────────
+echo "[6/9] Setting up configuration..."
+if [ ! -f "$BRAIN_DIR/brain-os.env" ]; then
+  cp "$SRC_DIR/brain-os.env.example" "$BRAIN_DIR/brain-os.env"
+  echo "  Created: $BRAIN_DIR/brain-os.env (edit with your tokens)"
+else
+  echo "  Skipped: brain-os.env already exists"
+fi
+
+# ── 7. 태스크큐 초기화 ────────────────────────
+echo "[7/9] Setting up task queues..."
+# brain-os.env에서 도메인 읽기
+if [ -f "$BRAIN_DIR/brain-os.env" ]; then
+  DOMAINS=$(grep "^BRAIN_OS_DOMAINS" "$BRAIN_DIR/brain-os.env" 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "")
+fi
+DOMAINS="${DOMAINS:-trading content infra}"
+
+for domain in $DOMAINS; do
+  QUEUE="$BRAIN_DIR/task-queue-${domain}.json"
+  if [ ! -f "$QUEUE" ]; then
+    echo "{\"version\": 1, \"project\": \"$domain\", \"tasks\": []}" > "$QUEUE"
+    echo "  Created: $QUEUE"
+  fi
+done
+
+# ── 8. Claude Code hooks 설정 ────────────────────────
+echo "[8/9] Configuring Claude Code hooks..."
 mkdir -p "$HOME/.claude"
 
 if [ -f "$CLAUDE_SETTINGS" ]; then
@@ -206,19 +176,24 @@ HOOKEOF
   echo "  Created: $CLAUDE_SETTINGS"
 fi
 
-# ── 7. Cron 등록 ────────────────────────
-echo "[7/7] Setting up cron jobs..."
+# ── 9. Cron 등록 ────────────────────────
+echo "[9/9] Setting up cron jobs..."
 CRON_MARKER="# Brain OS"
 
 if crontab -l 2>/dev/null | grep -q "$CRON_MARKER"; then
   echo "  Skipped: Brain OS cron jobs already registered"
 else
-  # 기존 crontab 보존 + 추가
   (
     crontab -l 2>/dev/null || true
     echo ""
     echo "$CRON_MARKER"
-    echo "# Capture Pipeline — browser history (daily 23:00 local)"
+    echo "# Self-Audit (every 30min)"
+    echo "*/30 * * * * $BRAIN_DIR/scripts/hermes-audit.sh >> $BRAIN_DIR/scripts/audit.log 2>&1"
+    echo "# Agent Loops — per domain (20:00-07:59 window)"
+    for domain in $DOMAINS; do
+      echo "*/30 11-14,15-22 * * * $BRAIN_DIR/scripts/agents/agent-loop.sh $domain >> $BRAIN_DIR/scripts/agent-loop.log 2>&1"
+    done
+    echo "# Capture Pipeline — browser history (daily 23:00)"
     echo "0 23 * * * /usr/bin/python3 $BRAIN_DIR/scripts/capture-history.py >> $BRAIN_DIR/scripts/capture.log 2>&1"
     echo "# User Model Update (daily 23:30)"
     echo "30 23 * * * /usr/bin/python3 $BRAIN_DIR/scripts/user-model-update.py >> $BRAIN_DIR/scripts/user-model.log 2>&1"
@@ -226,21 +201,30 @@ else
     echo "45 23 * * * /usr/bin/python3 $BRAIN_DIR/scripts/auto-memorize.py >> $BRAIN_DIR/scripts/memorize.log 2>&1"
     echo "# Vault Hygiene (daily 04:00)"
     echo "0 4 * * * $BRAIN_DIR/scripts/vault-hygiene.sh >> $BRAIN_DIR/scripts/vault-hygiene.log 2>&1"
-    echo "# Self-Audit (every 30min)"
-    echo "*/30 * * * * $BRAIN_DIR/scripts/si-pattern-check.sh >> $BRAIN_DIR/scripts/audit.log 2>&1"
   ) | crontab -
-  echo "  Registered 5 cron jobs"
+  CRON_COUNT=$(( 3 + $(echo "$DOMAINS" | wc -w | tr -d ' ') + 4 ))
+  echo "  Registered cron jobs"
 fi
 
 echo ""
+echo "============================================"
 echo "✅ Brain OS installed successfully!"
+echo "============================================"
+echo ""
+echo "Directory: $BRAIN_DIR"
+echo "Domains:   $DOMAINS"
 echo ""
 echo "Next steps:"
-echo "  1. cd $BRAIN_DIR"
-echo "  2. Open Claude Code — CLAUDE.md will auto-load"
-echo "  3. Start talking — the system learns automatically"
+echo "  1. Edit $BRAIN_DIR/brain-os.env with your Telegram/Discord tokens"
+echo "  2. cd $BRAIN_DIR && open Claude Code"
+echo "  3. CLAUDE.md auto-loads → self-improving agent active"
 echo ""
-echo "Commands:"
-echo "  si:status  — learning dashboard"
-echo "  si:review  — review patterns"
-echo "  si:promote — promote pattern to rule"
+echo "Task delegation:"
+echo "  dispatch-now.sh {domain} [task-id]  — trigger agent now"
+echo "  task-approve.py {queue} {task-id}   — approve reviewed task"
+echo ""
+echo "Learning commands (in Claude Code):"
+echo "  si:status   — learning dashboard"
+echo "  si:review   — review patterns for promotion"
+echo "  si:promote  — promote pattern to permanent rule"
+echo "  si:remember — save a fact immediately"
