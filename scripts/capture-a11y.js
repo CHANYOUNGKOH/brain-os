@@ -19,7 +19,7 @@ if (!url) {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
-    await page.goto(url, { waitUntil: 'networkidle', timeout });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
     await page.waitForTimeout(2000);  // JS 렌더링 대기
 
     const snapshot = await page.locator(':root').ariaSnapshot();

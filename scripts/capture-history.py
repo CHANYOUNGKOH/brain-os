@@ -15,23 +15,12 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import platform
-
-BRAIN_DIR = Path(os.environ.get("BRAIN_OS_DIR", str(Path.home() / ".brain-os")))
-VAULT = BRAIN_DIR / "vault"
+VAULT = Path.home() / ".hermes" / "vault"
 RAW_DIR = VAULT / "raw"
 LOG_FILE = VAULT / "log.md"
 
-# 플랫폼별 Chrome 경로
-if platform.system() == "Windows":
-    CHROME_HISTORY = Path(os.environ.get("LOCALAPPDATA", "")) / "Google" / "Chrome" / "User Data" / "Default" / "History"
-    SAFARI_HISTORY = None  # Safari 없음
-elif platform.system() == "Darwin":
-    CHROME_HISTORY = Path.home() / "Library" / "Application Support" / "Google" / "Chrome" / "Default" / "History"
-    SAFARI_HISTORY = Path.home() / "Library" / "Safari" / "History.db"
-else:  # Linux
-    CHROME_HISTORY = Path.home() / ".config" / "google-chrome" / "Default" / "History"
-    SAFARI_HISTORY = None
+CHROME_HISTORY = Path.home() / "Library" / "Application Support" / "Google" / "Chrome" / "Default" / "History"
+SAFARI_HISTORY = Path.home() / "Library" / "Safari" / "History.db"
 
 # Perplexity 등 보존 가치 높은 도메인
 HIGH_VALUE_DOMAINS = [
@@ -285,6 +274,35 @@ def main():
         hv_path = RAW_DIR / f"high-value-{date_str}.json"
         hv_path.write_text(json.dumps(high_value, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[capture] high-value saved: {hv_path}")
+
+    # Perplexity thread 감지 → 텔레그램 알림 (자동 캡처 불가 — Cloudflare 차단)
+    perplexity_urls = [e for e in deduped if "perplexity.ai" in e["url"]]
+    if perplexity_urls:
+        notify_perplexity(date_str, perplexity_urls)
+
+
+def notify_perplexity(date_str, urls):
+    """Perplexity thread 감지 시 텔레그램으로 보존 알림."""
+    telegram_script = Path.home() / ".openclaw" / "workspace" / "scripts" / "send_telegram.py"
+    if not telegram_script.exists():
+        print(f"[capture] perplexity {len(urls)} threads found but no telegram script")
+        return
+
+    msg = f"📚 [{date_str}] Perplexity {len(urls)}개 thread 감지\n"
+    msg += "자동 캡처 불가 (Cloudflare) — 보존 필요 시 공유 링크 생성 후 알려주세요:\n\n"
+    for e in urls[:5]:
+        title = e.get("title", "")[:60]
+        msg += f"• {title}\n  {e['url'][:100]}\n"
+
+    try:
+        import subprocess
+        subprocess.run(
+            [sys.executable, str(telegram_script), msg, "general"],
+            timeout=10, capture_output=True
+        )
+        print(f"[capture] perplexity notification sent ({len(urls)} threads)")
+    except Exception as e:
+        print(f"[capture] perplexity notify failed: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
